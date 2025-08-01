@@ -1,0 +1,7 @@
+django
+djangorestframework
+psycopg2-binary
+uvicorn
+redis
+celery
+drf-yasg

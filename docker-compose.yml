@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: b2b_postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=b2b_user
+      - POSTGRES_PASSWORD=b2b_password
+      - POSTGRES_DB=b2b_db
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U b2b_user -d b2b_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: b2b_redis
+    ports:
+      - "6379:6379"
+
+  app:
+    build: .
+    container_name: b2b_app
+    command: >
+      sh -c "python manage.py migrate &&
+             uvicorn b2b_project.asgi:application --host 0.0.0.0 --port 8000"
+    volumes:
+      - .:/usr/src/app/
+      - static_volume:/usr/src/app/staticfiles
+    environment:
+      - DB_HOST=db
+      - DB_NAME=b2b_db
+      - DB_USER=b2b_user
+      - DB_PASS=b2b_password
+      - REDIS_HOST=redis
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  celery_worker:
+    build: .
+    container_name: b2b_celery_worker
+    command: celery -A b2b_project worker --loglevel=info
+    volumes:
+      - .:/usr/src/app/
+    environment:
+      - DB_HOST=db
+      - DB_NAME=b2b_db
+      - DB_USER=b2b_user
+      - DB_PASS=b2b_password
+      - REDIS_HOST=redis
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - app
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: b2b_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf 
+      - static_volume:/usr/src/app/staticfiles
+    depends_on:
+      - app
+
+volumes:
+  postgres_data:
+  static_volume:

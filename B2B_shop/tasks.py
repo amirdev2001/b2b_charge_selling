@@ -1,0 +1,40 @@
+from celery import shared_task
+from django.db import transaction
+from .models import Seller, TransactionLog
+from decimal import Decimal
+
+@shared_task
+def process_charge_task(seller_id, amount_str, unique_id):
+    """
+    Celery task to process a charge asynchronously.
+    This handles the database logic, ensuring the API can return quickly.
+    """
+    amount = Decimal(amount_str)
+    try:
+        with transaction.atomic():
+            seller = Seller.objects.select_for_update().get(pk=seller_id)
+
+            if seller.credit < amount:
+                # In a real system, you might log this failure or send a notification
+                print(f"Charge failed for {unique_id}: Insufficient credit.")
+                return
+
+            new_balance = seller.credit - amount
+            
+            # Create log and update seller credit
+            TransactionLog.objects.create(
+                unique_id=unique_id,
+                seller=seller,
+                transaction_type='charge_sale',
+                amount=-amount,
+                balance_after=new_balance
+            )
+            seller.credit = new_balance
+            seller.save()
+            print(f"Charge successful for {unique_id}.")
+            
+    except Seller.DoesNotExist:
+        print(f"Charge failed for {unique_id}: Seller not found.")
+    except Exception as e:
+        # The transaction will roll back automatically on error.
+        print(f"An unexpected error occurred during charge {unique_id}: {e}")
