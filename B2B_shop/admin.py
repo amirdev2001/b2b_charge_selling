@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 from django.db import transaction
 from .models import Seller, CreditRequest, TransactionLog
+from django.db.models import F
 
 @admin.register(Seller)
 class SellerAdmin(admin.ModelAdmin):
@@ -32,12 +33,19 @@ class CreditRequestAdmin(admin.ModelAdmin):
         for credit_request in pending_requests:
             try:
                 with transaction.atomic():
+                    credit_request = CreditRequest.objects.select_for_update().get(pk=credit_request.pk)
+                    if credit_request.status != 'pending':
+                        # skip it, someone else already did it
+                        continue
+
                     # Lock the seller row to prevent race conditions during update
                     seller = Seller.objects.select_for_update().get(pk=credit_request.seller.id)
+
+                    Seller.objects.filter(pk=seller.pk) \
+                                .update(credit=F('credit') + credit_request.amount)
                     
-                    # Increase seller's credit
-                    seller.credit += credit_request.amount
-                    seller.save()
+                    # Now reload seller.credit if you need it for the log:
+                    seller.refresh_from_db()
                     
                     # Update request status
                     credit_request.status = 'approved'
