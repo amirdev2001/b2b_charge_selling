@@ -21,7 +21,7 @@ schema_view = get_schema_view(
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('B2B_shop.urls')),
-    path('api-token-auth/', views.obtain_auth_token),
+    path('api/token/', views.obtain_auth_token),
    #  path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 
 

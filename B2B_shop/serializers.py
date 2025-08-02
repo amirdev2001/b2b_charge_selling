@@ -1,5 +1,6 @@
 from rest_framework import serializers
 import uuid
+from decimal import Decimal
 
 class ChargeSerializer(serializers.Serializer):
     """
@@ -7,5 +8,9 @@ class ChargeSerializer(serializers.Serializer):
     Validates amount, phone number, and the unique ID for idempotency[cite: 17].
     """
     phone_number = serializers.CharField(max_length=20)
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0.01)
+    amount = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        min_value=Decimal("0.01")
+    )
     unique_id = serializers.UUIDField()
