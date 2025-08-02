@@ -1,7 +1,9 @@
 from django.urls import path
-from .views import ChargeAPIView
+from . import views
 
 urlpatterns = [
-    # URL for the phone charging API
-    path('charge/', ChargeAPIView.as_view(), name='charge_api'),
+    path('create/', views.CreateSellerAPIView.as_view(), name='charge_api'),
+    path('credit-request/', views.CreditRequestAPIView.as_view(), name='charge_api'),
+    path('transactions/', views.TransactionsAPIView.as_view(), name='charge_api'),
+    path('charge/', views.ChargeAPIView.as_view(), name='charge_api'),
 ]
