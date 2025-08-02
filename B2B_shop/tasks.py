@@ -2,6 +2,9 @@ from celery import shared_task
 from django.db import transaction
 from .models import Seller, TransactionLog
 from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 @shared_task
 def process_charge_task(seller_id, amount_str, unique_id):
@@ -15,20 +18,26 @@ def process_charge_task(seller_id, amount_str, unique_id):
             seller = Seller.objects.select_for_update().get(pk=seller_id)
 
             if seller.credit < amount:
-                # In a real system, you might log this failure or send a notification
-                print(f"Charge failed for {unique_id}: Insufficient credit.")
+                logger.warning("Charge failed [%s]: insufficient credit (%s)", unique_id, amount)
                 return
 
-            new_balance = seller.credit - amount
-            
-            # Create log and update seller credit
-            TransactionLog.objects.create(
+            # get or Create log and update seller credit
+            log, created = TransactionLog.objects.create(
                 unique_id=unique_id,
                 seller=seller,
                 transaction_type='charge_sale',
                 amount=-amount,
                 balance_after=new_balance
             )
+
+            if not created:
+                logger.info("Charge [%s] already processed—skipping.", unique_id)
+                return
+
+            new_balance = seller.credit - amount
+            
+
+
             seller.credit = new_balance
             seller.save()
             print(f"Charge successful for {unique_id}.")
