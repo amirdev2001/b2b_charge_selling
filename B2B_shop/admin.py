@@ -22,7 +22,10 @@ class ChargeAdmin(admin.ModelAdmin):
 class CreditRequestAdmin(admin.ModelAdmin):
     list_display = ('seller', 'amount', 'status', 'created_at')
     list_filter = ('status',)
-    actions = ['approve_requests']
+    actions = ['approve_requests', 'reject_requests']
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
     @admin.action(description='Approve selected credit requests')
     def approve_requests(self, request, queryset):
@@ -66,3 +69,30 @@ class CreditRequestAdmin(admin.ModelAdmin):
                 self.message_user(request, f"Error approving request for {credit_request.seller.name}: {e}", messages.ERROR)
         
         self.message_user(request, f"Successfully approved {pending_requests.count()} requests.", messages.SUCCESS)
+
+    @admin.action(description='Reject selected credit requests')
+    def reject_requests(self, request, queryset):
+        """
+        Admin action to reject credit requests.
+        This operation is atomic to ensure data integrity.
+        """
+        # Filter for only pending requests to avoid re-rejecting
+        pending_requests = queryset.filter(status='pending')
+        
+        for credit_request in pending_requests:
+            try:
+                with transaction.atomic():
+                    credit_request = CreditRequest.objects.select_for_update().get(pk=credit_request.pk)
+                    if credit_request.status != 'pending':
+                        # skip it, someone else already processed it
+                        continue
+
+                    # Update request status to rejected
+                    credit_request.status = 'rejected'
+                    credit_request.save()
+                    
+            except Exception as e:
+                self.message_user(request, f"Error rejecting request for {credit_request.seller.name}: {e}", messages.ERROR)
+        
+        self.message_user(request, f"Successfully rejected {pending_requests.count()} requests.", messages.SUCCESS)
+
