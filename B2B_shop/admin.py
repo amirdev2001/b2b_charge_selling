@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 from django.db import transaction
-from .models import Seller, CreditRequest, TransactionLog
+from .models import Seller, CreditRequest, TransactionLog, Charge
 from django.db.models import F
 
 @admin.register(Seller)
@@ -13,6 +13,10 @@ class TransactionLogAdmin(admin.ModelAdmin):
     list_display = ('seller', 'transaction_type', 'amount', 'balance_after', 'created_at')
     list_filter = ('seller', 'transaction_type')
     readonly_fields = [f.name for f in TransactionLog._meta.fields] # All fields read-only
+
+@admin.register(Charge)
+class ChargeAdmin(admin.ModelAdmin):
+    list_display = ('seller', 'phone_number', 'amount', 'status', 'created_at')
 
 @admin.register(CreditRequest)
 class CreditRequestAdmin(admin.ModelAdmin):

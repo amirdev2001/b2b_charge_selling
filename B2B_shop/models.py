@@ -40,6 +40,34 @@ class CreditRequest(models.Model):
         return f"Request of {self.amount} for {self.seller.name} ({self.status})"
 
 
+class Charge(models.Model):
+    """
+    Represents a charge initiated by a seller, e.g., for a product or service.
+    Each charge has a unique UUID, seller, amount, phone number, status, and timestamp.
+    The amount must always be positive.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+
+    unique_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    seller = models.ForeignKey(Seller, on_delete=models.CASCADE, related_name='charges')
+    phone_number = models.CharField(max_length=15)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            CheckConstraint(check=Q(amount__gt=0), name='charge_amount_positive')
+        ]
+
+    def __str__(self):
+        return f"Charge {self.amount} to {self.phone_number} by {self.seller.name} ({self.status})"
+
+
 class TransactionLog(models.Model):
     """
     Logs every operation that changes a seller's credit to ensure accounting is verifiable[cite: 6, 7, 15].
@@ -53,7 +81,8 @@ class TransactionLog(models.Model):
     unique_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     seller = models.ForeignKey(Seller, on_delete=models.CASCADE, related_name='transactions')
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
-    amount = models.DecimalField(max_digits=10, decimal_places=2) # Can be positive or negative
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    phone_number = models.CharField(max_length=15, blank=True, null=True)
     balance_after = models.DecimalField(max_digits=10, decimal_places=2) # Seller's balance after this tx
     created_at = models.DateTimeField(auto_now_add=True)
 

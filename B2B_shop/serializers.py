@@ -8,15 +8,14 @@ from .models import Seller, CreditRequest, TransactionLog
 class ChargeSerializer(serializers.Serializer):
     """
     Serializer for the phone charging endpoint.
-    Validates amount, phone number, and the unique ID for idempotency.
+    Validates amount, phone number for idempotency.
     """
-    phone_number = serializers.CharField(max_length=20)
+    phone_number = serializers.CharField(max_length=11)
     amount = serializers.DecimalField(
         max_digits=10, 
         decimal_places=2, 
         min_value=Decimal("0.01")
     )
-    unique_id = serializers.UUIDField()
 
 class CreateSellerSerializer(serializers.Serializer):
     """

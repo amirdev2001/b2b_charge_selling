@@ -171,14 +171,13 @@ class ChargeAPIView(APIView):
 
         validated_data = serializer.validated_data
         
-        # In a real app, use `request.user.id`
-        seller_id = 1 
+        seller_id = request.user.seller.id
 
         # Offload the database operation to Celery
         process_charge_task.delay(
             seller_id=seller_id,
-            amount_str=str(validated_data['amount']), # Pass Decimal as string
-            unique_id=validated_data['unique_id']
+            amount_str=str(validated_data['amount']),
+            phone_number=str(validated_data['phone_number']),
         )
         
         # Return an immediate response to the client
